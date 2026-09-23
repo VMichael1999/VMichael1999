@@ -99,11 +99,7 @@ def frame(title, subtitle, body):
         f'<defs><linearGradient id="acc" x1="0" y1="0" x2="1" y2="0">'
         f'<stop offset="0" stop-color="{T["primary"]}"/>'
         f'<stop offset="1" stop-color="{T["violet"]}"/></linearGradient>'
-        f'<style>.in{{opacity:0;animation:in .5s ease forwards}}'
-        f'@keyframes in{{to{{opacity:1}}}}'
-        f'.grow{{transform-box:fill-box;transform:scaleX(0);'
-        f'animation:grow 1s cubic-bezier(.45,0,.2,1) .3s forwards}}'
-        f'@keyframes grow{{to{{transform:scaleX(1)}}}}</style></defs>'
+        f'</defs>'
         f'<rect x="0.5" y="0.5" width="{W - 1}" height="{H - 1}" rx="12" '
         f'fill="{T["bg"]}" stroke="{T["border"]}"/>'
         f'<text x="24" y="34" font-size="11" letter-spacing="2" '
@@ -131,9 +127,9 @@ def stats_card(d):
             in enumerate([r for r in rows if r[1] > 0][:5])]
     body = []
     for i, (label, value, color) in enumerate(rows):
-        y = 84 + i * 32
+        y = 84 + (5 - len(rows)) * 16 + i * 32  # centradas en vertical
         body.append(
-            f'<g class="in" style="animation-delay:{0.1 + i * 0.1:.1f}s">'
+            f'<g>'
             f'<rect x="24" y="{y - 10}" width="8" height="8" rx="2" '
             f'fill="{color}"/>'
             f'<text x="44" y="{y}" font-size="14" fill="{T["muted"]}">'
@@ -143,18 +139,14 @@ def stats_card(d):
         )
     # anillo con los commits (las contribuciones ya salen en la racha)
     cx, cy, r = 450, 145, 64
-    circ = 2 * 3.14159 * r
     body.append(
-        f'<g class="in" style="animation-delay:.3s">'
+        f'<g>'
         f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" '
         f'stroke="{T["track"]}" stroke-width="8"/>'
         f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="url(#acc)" '
         f'stroke-width="8" stroke-linecap="round" '
-        f'stroke-dasharray="{circ:.1f}" stroke-dashoffset="{circ:.1f}" '
         f'transform="rotate(-90 {cx} {cy})">'
-        f'<animate attributeName="stroke-dashoffset" to="0" dur="1.4s" '
-        f'begin="0.3s" fill="freeze" calcMode="spline" keyTimes="0;1" '
-        f'keySplines=".45 0 .2 1"/></circle>'
+        f'</circle>'
         f'<text x="{cx}" y="{cy + 6}" font-size="30" font-weight="700" '
         f'font-family="{SANS}" text-anchor="middle" fill="{T["text"]}">'
         f'{d["commits"]:,}</text>'
@@ -175,7 +167,7 @@ def langs_card(d, top=8):
     body.append(f'<clipPath id="bar"><rect x="24" y="72" width="{bw}" '
                 f'height="10" rx="5"/></clipPath>'
                 f'<rect x="24" y="72" width="{bw}" height="10" rx="5" '
-                f'fill="{T["track"]}"/><g clip-path="url(#bar)" class="grow">')
+                f'fill="{T["track"]}"/><g clip-path="url(#bar)">')
     for lang, size in items:
         w = bw * size / total
         body.append(f'<rect x="{x:.1f}" y="72" width="{w + 0.5:.1f}" '
@@ -189,7 +181,7 @@ def langs_card(d, top=8):
         pct = 100 * size / total
         color = LANG_COLORS.get(lang, T["dim"])
         body.append(
-            f'<g class="in" style="animation-delay:{0.3 + i * 0.08:.2f}s">'
+            f'<g>'
             f'<circle cx="{lx + 5}" cy="{ly - 5}" r="5" fill="{color}"/>'
             f'<text x="{lx + 18}" y="{ly}" font-size="14" fill="{T["text"]}">'
             f'{escape(lang)}</text>'
@@ -201,8 +193,14 @@ def langs_card(d, top=8):
 
 
 def main():
-    d = collect()
     OUT.mkdir(parents=True, exist_ok=True)
+    cache = OUT / "stats.json"
+    # STATS_CACHE=1 redibuja con los datos guardados sin llamar a la API
+    if os.environ.get("STATS_CACHE") and cache.exists():
+        d = json.loads(cache.read_text(encoding="utf-8"))
+    else:
+        d = collect()
+        cache.write_text(json.dumps(d), encoding="utf-8")
     (OUT / "stats.svg").write_text(stats_card(d), encoding="utf-8")
     (OUT / "langs.svg").write_text(langs_card(d), encoding="utf-8")
     print(json.dumps({k: v for k, v in d.items() if k != "langs"}))
